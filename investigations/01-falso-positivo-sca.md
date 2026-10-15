@@ -17,7 +17,7 @@ O processo foi um download malicioso ou ruído gerado pelo próprio agente?
 | ParentProcessGuid | `{62b5e579-14ef-6ad0-c905-000000000d00}` |
 | Processo filho | `C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe` |
 | ProcessGuid (filho) | `{62b5e579-1505-6ad0-e505-000000000d00}` |
-| CommandLine | `powershell -NoProfile -Command "[bool](Get-CimInstance -Query 'SELECT * FROM Win32_UserAccount WHERE LocalAccount = TRUE AND SID LIKE ''S-1-5-21-%-501''' | Where-Object -Property Disabled)"` |
+| CommandLine | `powershell -NoProfile -Command "[bool](Get-CimInstance -Query 'SELECT * FROM Win32_UserAccount WHERE LocalAccount = TRUE AND SID LIKE ''S-1-5-21-%-501''' \| Where-Object -Property Disabled)"` |
 | Usuário | AUTORIDADE NT\SISTEMA |
 | Assinatura do agente | Status: Valid |
 
