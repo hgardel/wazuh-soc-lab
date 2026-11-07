@@ -72,7 +72,84 @@ Total de eventos 4625 registrados no SIEM: 10.
 
 ## Cenário 3: PowerShell com comando codificado
 
-Status: pendente
-Técnica: T1059.001
-Fonte: Sysmon, evento 1
-Pergunta: dá para achar pelo campo CommandLine?
+- **Status:** concluído (31/10/2026)
+- **Técnica:** T1059.001 (Command and Scripting Interpreter: PowerShell), tática Execution
+- **Fonte:** Sysmon, evento 1 (Process Create)
+- **Ambiente:** `windows-endpoint` (Windows 11, Sysmon, agente 002) e `wazuh-server` 4.14.7, em rede host-only isolada. Teste local e controlado.
+
+### Objetivo
+Verificar se o Wazuh detecta a execução de PowerShell com `-EncodedCommand` pelo campo CommandLine do evento 1 do Sysmon.
+
+### Execução
+Em um PowerShell elevado no endpoint, executei duas vezes:
+
+```
+powershell -NoProfile -EncodedCommand aABvAHMAdABuAGEAbQBlAA==
+```
+
+O payload é Base64 em UTF-16LE. Decodificado no host, resulta em `hostname`, um comando inofensivo:
+
+```
+echo 'aABvAHMAdABuAGEAbQBlAA==' | base64 -d | iconv -f UTF-16LE -t UTF-8
+```
+
+Consulta DQL usada (Threat Hunting):
+
+```
+data.win.system.eventID:"1" and data.win.eventdata.commandLine:*EncodedCommand*
+```
+
+### Resultados
+
+| Item | Valor |
+|---|---|
+| Evento de origem | Sysmon evento 1 (Process Create) |
+| Alertas gerados | 2, um por execução (31/10/2026, cerca de 16:56 e 16:59, horário local) |
+| Regra | 92057, arquivo 0800-sysmon_id_1.xml |
+| Descrição | Powershell.exe spawned a powershell process which executed a base64 encoded command |
+| Nível | 12 |
+| Grupos | sysmon, sysmon_eid1_detections, windows |
+| Tática e técnica | Execution, PowerShell (T1059.001) |
+| Latência | cerca de 2 segundos, do evento no Sysmon ao alerta no Wazuh |
+
+### Campos do evento 1 (primeiro alerta)
+
+| Campo | Valor |
+|---|---|
+| Image | `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` |
+| OriginalFileName | PowerShell.EXE (igual ao nome do binário, sem renomeação) |
+| ParentImage | `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` |
+| ParentCommandLine | `powershell.exe` (shell interativo, sem argumentos) |
+| CommandLine | `powershell.exe -NoProfile -EncodedCommand aABvAHMAdABuAGEAbQBlAA=` |
+| IntegrityLevel | High (shell elevado) |
+| TerminalSessionId | 1 (sessão interativa) |
+| CurrentDirectory | `C:\WINDOWS\system32\` |
+| SHA256 | 60C9B29843624DD8AF6B6A7B26147753BE6AEEF65098B9A503CC50850AFE410F |
+
+Usuário e hostname foram omitidos por privacidade. O segundo alerta (cerca de 16:59) não foi aberto individualmente.
+
+### Enriquecimento (VirusTotal)
+- Consultei o SHA256 do `powershell.exe` por busca (somente o hash, sem enviar o arquivo).
+- Resultado: 0 de 71 fornecedores marcaram como malicioso. Nome do arquivo: PowerShell.EXE, 484 KB.
+- Conclusão: o binário é o PowerShell legítimo do Windows, sem reputação maliciosa.
+- Os relatórios de sandbox exibem sinais como tags de ofuscação e regras Sigma. Eles refletem o comportamento da própria ferramenta em sandbox (e, provavelmente, o ambiente do teste), não indicam que o binário seja malicioso.
+- O PowerShell é um LOLBin. A reputação do hash não detecta o abuso, que aparece só na linha de comando e no processo pai. Por isso a regra 92057 analisa `commandLine` e `parentImage`, e não o hash.
+
+### Análise
+- A regra 92057 exige duas condições: o processo pai é `powershell.exe` e a CommandLine contém `powershell.exe` seguido de `-EncodedCommand` ou de uma abreviação (`-e`, `-ec`, `-enc` e variantes). Os dois campos acima atendem a regra.
+- Triagem: **verdadeiro positivo de comportamento, atividade benigna e esperada** (teste do lab).
+- Um payload inofensivo gerou alerta de nível 12. A regra detecta a técnica, não a intenção. Em produção, o analista decodificaria o comando e checaria processo pai, usuário, nível de integridade, horário e frequência antes de escalar.
+- Sinais que aumentariam a suspeita em produção: pai inesperado (Office, navegador), usuário fora do padrão, execução fora do horário e payload que baixa ou executa código remoto.
+- O CommandLine registrado termina com um único `=`, diferente do comando planejado (`==`), provável erro de digitação. A regra disparou mesmo assim. O Sysmon registra a criação do processo, não o resultado da execução.
+
+### Limitações
+- A regra depende do processo pai ser PowerShell. Não testei a execução a partir de outro pai (por exemplo, o CMD). É uma hipótese a validar.
+- Não testei ofuscações além do `-EncodedCommand` padrão.
+- O evento 1 não mostra a saída do comando. Ver o conteúdo decodificado exigiria o PowerShell Script Block Logging (evento 4104), que não estava habilitado.
+- Foi um único payload, inofensivo e de teste.
+
+### Evidências
+- Prints em `evidence/` (usuário e SID omitidos): alerta 92057 de nível 12, evento 1 aberto e consulta do SHA256 no VirusTotal.
+
+### Snapshots
+- "Fase 2 pre cenario 3" e "Fase 2 pos cenario 3"
