@@ -6,7 +6,7 @@ Todos os testes rodam só no lab isolado, com snapshot antes e depois.
 
 Status: concluído (16/10/2026)
 Origem: 192.168.56.1 (host, rede host-only)
-Usuário alvo: [usuário de teste]
+Usuário alvo: conta de teste (omitida)
 Tentativas manuais com senha errada: 5
 
 Resultados no Discover (agent.name:"ubuntu-endpoint" and rule.groups:"authentication_failed"):
