@@ -149,7 +149,10 @@ Usuário e hostname foram omitidos por privacidade. O segundo alerta (cerca de 1
 - Foi um único payload, inofensivo e de teste.
 
 ### Evidências
-- Prints em `evidence/` (usuário e SID omitidos): alerta 92057 de nível 12, evento 1 aberto e consulta do SHA256 no VirusTotal.
+Prints em `evidence/` (sem usuário nem SID):
+- `cenario3-alerta-92057.png`: Threat Hunting, aba Events, alerta 92057 de nível 12.
+- `cenario3-dashboard-dql.png`: Dashboard com a consulta DQL e os 2 alertas de nível 12.
+- `cenario3-virustotal.png`: consulta do SHA256 no VirusTotal (0 de 71).
 
 ### Snapshots
 - "Fase 2 pre cenario 3" e "Fase 2 pos cenario 3"
